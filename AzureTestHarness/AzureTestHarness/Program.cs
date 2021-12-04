@@ -3,6 +3,7 @@ using System.IO;
 using System.Reflection;
 using System.Threading.Tasks;
 using AzureTestHarness.Services;
+using AzureTestHarness.Services.Services;
 using AzureTestHarness.Shared.Interfaces;
 using AzureTestHarness.Shared.Models.OptionModels;
 using Microsoft.Extensions.Configuration;
@@ -25,6 +26,10 @@ namespace AzureTestHarness
                 Task.Run(async () =>
                 { 
                     var result = await keyVaultService.GetSecretAsync();
+                    if (!string.IsNullOrEmpty(result))
+                    {
+                        var response = await keyVaultService.SetSecretAsync();
+                    }
                 }).GetAwaiter().GetResult();
             }
             catch (Exception ex)
