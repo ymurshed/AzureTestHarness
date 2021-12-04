@@ -11,39 +11,39 @@ namespace AzureTestHarness.Services.Services
     public class KeyVaultService : IKeyVaultService
     {
         private readonly IOptions<KeyVaultOption> _keyVaultOption;
+        private readonly SecretClient _client;
 
         public KeyVaultService(IOptions<KeyVaultOption> keyVaultOption)
         {
             _keyVaultOption = keyVaultOption;
+            _client = GetClient();
         }
 
-        public async Task<string> GetSecretAsync()
+        public async Task<Azure.Response<KeyVaultSecret>> GetSecretAsync(string name)
         {
             try
             {
-                var client = GetClient();
-                var secret = await client.GetSecretAsync("UserName");
-                return secret.Value.Value;
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"Error getting secret: {ex}");
-                return null;
-            }
-        }
-
-        public async Task<KeyVaultSecret> SetSecretAsync()
-        {
-            try
-            {
-                var client = GetClient();
-                var secret = new KeyVaultSecret("Designation", "Principal Software Engineer");
-                var response = await client.SetSecretAsync(secret);
+                var response = await _client.GetSecretAsync(name);
                 return response;
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Error setting secret: {ex}");
+                Console.WriteLine($"KeyVault getting secret failed. Error: {ex}");
+                return null;
+            }
+        }
+
+        public async Task<Azure.Response<KeyVaultSecret>> SetSecretAsync(string name, string value)
+        {
+            try
+            {
+                var secret = new KeyVaultSecret(name, value);
+                var response = await _client.SetSecretAsync(secret);
+                return response;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"KeyVault setting secret failed. Error: {ex}");
                 return null;
             }
         }

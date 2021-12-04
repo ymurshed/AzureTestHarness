@@ -2,7 +2,6 @@
 using System.IO;
 using System.Reflection;
 using System.Threading.Tasks;
-using AzureTestHarness.Services;
 using AzureTestHarness.Services.Services;
 using AzureTestHarness.Shared.Interfaces;
 using AzureTestHarness.Shared.Models.OptionModels;
@@ -21,15 +20,15 @@ namespace AzureTestHarness
             try
             {
                 Configure();
-                var keyVaultService = ServiceProvider.GetService<IKeyVaultService>();
                 
                 Task.Run(async () =>
                 { 
-                    var result = await keyVaultService.GetSecretAsync();
-                    if (!string.IsNullOrEmpty(result))
-                    {
-                        var response = await keyVaultService.SetSecretAsync();
-                    }
+                    var kv = new KeyVaultServiceInvoker(ServiceProvider.GetService<IKeyVaultService>());
+                    await kv.Invoke();
+
+                    var bs = new BlobStorageServiceInvoker(ServiceProvider.GetService<IBlobStorageService>());
+                    await bs.Invoke();
+
                 }).GetAwaiter().GetResult();
             }
             catch (Exception ex)
@@ -39,7 +38,7 @@ namespace AzureTestHarness
         }
 
         #region Private methods    
-        public static void Configure()
+        private static void Configure()
         {
             #region Set startup path
             var appBasePath = Path.GetDirectoryName(Assembly.GetEntryAssembly()?.Location);
@@ -53,8 +52,12 @@ namespace AzureTestHarness
             #endregion
 
             var services = new ServiceCollection().AddOptions();
+            
             services.Configure<KeyVaultOption>(Configuration.GetSection(nameof(KeyVaultOption)));
+            services.Configure<BlobStorageOption>(Configuration.GetSection(nameof(BlobStorageOption)));
+
             services.AddTransient<IKeyVaultService, KeyVaultService>();
+            services.AddTransient<IBlobStorageService, BlobStorageService>();
 
             ServiceProvider = services.BuildServiceProvider();
         }
