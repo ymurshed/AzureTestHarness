@@ -1,9 +1,12 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Reflection;
 using System.Threading.Tasks;
+using AzureTestHarness.Invoker;
 using AzureTestHarness.Services.Services;
 using AzureTestHarness.Shared.Interfaces;
+using AzureTestHarness.Shared.Models.Constants;
 using AzureTestHarness.Shared.Models.OptionModels;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -20,14 +23,38 @@ namespace AzureTestHarness
             try
             {
                 Configure();
-                
-                Task.Run(async () =>
-                { 
-                    var kv = new KeyVaultServiceInvoker(ServiceProvider.GetService<IKeyVaultService>());
-                    await kv.Invoke();
 
-                    var bs = new BlobStorageServiceInvoker(ServiceProvider.GetService<IBlobStorageService>());
-                    await bs.Invoke();
+                var services = new List<Enums.AzureService>
+                {
+                    Enums.AzureService.KeyVault,
+                    Enums.AzureService.BlobStorage,
+                    Enums.AzureService.ServiceBus
+                };
+
+                Task.Run(async () =>
+                {
+                    foreach (var service in services)
+                    {
+                        switch (service)
+                        {
+                            case Enums.AzureService.KeyVault:
+                            var kv = new KeyVaultServiceInvoker(ServiceProvider.GetService<IKeyVaultService>());
+                            await kv.Invoke();
+                            break;
+
+                            case Enums.AzureService.BlobStorage:
+                            var bs = new BlobStorageServiceInvoker(ServiceProvider.GetService<IBlobStorageService>());
+                            await bs.Invoke();
+                            break;
+
+                            case Enums.AzureService.ServiceBus:
+                            var sb = new ServiceBusServiceInvoker(ServiceProvider.GetService<IServiceBusService>());
+                            await sb.Invoke();
+                            break;
+                            
+                            default: throw new ArgumentOutOfRangeException();
+                        }
+                    }
 
                 }).GetAwaiter().GetResult();
             }
@@ -55,9 +82,11 @@ namespace AzureTestHarness
             
             services.Configure<KeyVaultOption>(Configuration.GetSection(nameof(KeyVaultOption)));
             services.Configure<BlobStorageOption>(Configuration.GetSection(nameof(BlobStorageOption)));
+            services.Configure<ServiceBusOption>(Configuration.GetSection(nameof(ServiceBusOption)));
 
             services.AddTransient<IKeyVaultService, KeyVaultService>();
             services.AddTransient<IBlobStorageService, BlobStorageService>();
+            services.AddTransient<IServiceBusService, ServiceBusService>();
 
             ServiceProvider = services.BuildServiceProvider();
         }

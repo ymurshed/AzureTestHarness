@@ -2,7 +2,7 @@
 using System.Threading.Tasks;
 using AzureTestHarness.Shared.Interfaces;
 
-namespace AzureTestHarness
+namespace AzureTestHarness.Invoker
 {
     public class KeyVaultServiceInvoker : IInvoker
     {

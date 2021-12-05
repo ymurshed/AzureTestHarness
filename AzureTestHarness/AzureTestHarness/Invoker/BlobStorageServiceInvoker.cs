@@ -3,7 +3,7 @@ using System.IO;
 using System.Threading.Tasks;
 using AzureTestHarness.Shared.Interfaces;
 
-namespace AzureTestHarness
+namespace AzureTestHarness.Invoker
 {
     public class BlobStorageServiceInvoker : IInvoker
     {

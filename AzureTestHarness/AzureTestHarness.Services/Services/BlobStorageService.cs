@@ -36,6 +36,7 @@ namespace AzureTestHarness.Services.Services
             {
                 Console.WriteLine($"BlobService upload failed. Error: {ex}");
             }
+
             return blobContentInfo;
         }
 
@@ -53,6 +54,7 @@ namespace AzureTestHarness.Services.Services
             {
                 Console.WriteLine($"BlobService download failed. Error: {ex}");
             }
+
             return response;
         }
 
@@ -73,6 +75,7 @@ namespace AzureTestHarness.Services.Services
             {
                 Console.WriteLine($"BlobService list failed. Error: {ex}");
             }
+
             return result;
         }
         
