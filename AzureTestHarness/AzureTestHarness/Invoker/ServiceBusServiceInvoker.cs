@@ -37,7 +37,8 @@ namespace AzureTestHarness.Invoker
 
             await _serviceBusService.SendMessageAsync(employees.FirstOrDefault());
             await _serviceBusService.SendMessageAsync(employees.LastOrDefault());
-
+            var msg = await _serviceBusService.ReceiveMessageAsync();
+            Console.WriteLine($"Message peeked: {msg}");
             await _serviceBusService.ProcessMessageAsync();
         }
     }

@@ -21,14 +21,21 @@ namespace AzureTestHarness.Services.Services
             _client = GetClient();
         }
 
+        ~ServiceBusService()
+        {
+            _client.DisposeAsync();
+        }
+
+
         public async Task SendMessageAsync<T>(T serviceBusMessage)
         {
+            var sender = _client.CreateSender(_serviceBusOption.Value.Queue);
+
             try
             {
                 var messageBody = JsonSerializer.Serialize(serviceBusMessage);
                 var message = new ServiceBusMessage(Encoding.UTF8.GetBytes(messageBody));
                 
-                var sender = _client.CreateSender(_serviceBusOption.Value.Queue);
                 await sender.SendMessageAsync(message);
                 await sender.CloseAsync();
             }
@@ -36,8 +43,36 @@ namespace AzureTestHarness.Services.Services
             {
                 Console.WriteLine($"Service bus message send failed. Error: {ex}");
             }
+            finally
+            {
+                await sender.CloseAsync();
+            }
         }
 
+        // Equivalent to Peek event, perform read only from queue
+        public async Task<string> ReceiveMessageAsync()
+        {
+            var receiver = _client.CreateReceiver(_serviceBusOption.Value.Queue);
+
+            try
+            {
+                var message = await receiver.ReceiveMessageAsync();
+                var jsonString = Encoding.UTF8.GetString(message.Body);
+                await receiver.CloseAsync();
+                return jsonString;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Service bus message receive failed. Error: {ex}");
+                return null;
+            }
+            finally
+            {
+                await receiver.CloseAsync();
+            }
+        }
+
+        // Equivalent to Receive event, perform read & delete from queue 
         public async Task ProcessMessageAsync()
         {
             var processor = _client.CreateProcessor(_serviceBusOption.Value.Queue, new ServiceBusProcessorOptions());
@@ -57,7 +92,7 @@ namespace AzureTestHarness.Services.Services
             }
             finally
             {
-                await processor.DisposeAsync();
+                await processor.CloseAsync();
                 await _client.DisposeAsync();
             }
         }
