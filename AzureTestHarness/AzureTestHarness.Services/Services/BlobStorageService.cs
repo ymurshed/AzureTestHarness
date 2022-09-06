@@ -3,6 +3,8 @@ using System.Collections.Generic;
 using System.Threading.Tasks;
 using Azure.Storage.Blobs;
 using Azure.Storage.Blobs.Models;
+using Azure.Storage.Blobs.Specialized;
+using Azure.Storage.Sas;
 using AzureTestHarness.Shared.Interfaces;
 using AzureTestHarness.Shared.Models.OptionModels;
 using Microsoft.AspNetCore.StaticFiles;
@@ -38,6 +40,41 @@ namespace AzureTestHarness.Services.Services
             }
 
             return blobContentInfo;
+        }
+
+        public async Task<Uri> GetUserDelegationSasBlob(string blobName)
+        {
+            var blobClient = GetBlobClient(blobName);
+            var blobServiceClient = blobClient.GetParentBlobContainerClient().GetParentBlobServiceClient();
+
+            // Get a user delegation key for the Blob service that's valid for 7 days.
+            // You can use the key to generate any number of shared access signatures 
+            // over the lifetime of the key.
+            var userDelegationKey = await blobServiceClient.GetUserDelegationKeyAsync(DateTimeOffset.UtcNow, DateTimeOffset.UtcNow.AddDays(7));
+
+            // Create a SAS token that's also valid for 7 days.
+            var sasBuilder = new BlobSasBuilder
+            {
+                BlobContainerName = blobClient.BlobContainerName,
+                BlobName = blobClient.Name,
+                Resource = "b",
+                StartsOn = DateTimeOffset.UtcNow,
+                ExpiresOn = DateTimeOffset.UtcNow.AddDays(7)
+            };
+
+            // Specify read and write permissions for the SAS.
+            sasBuilder.SetPermissions(BlobSasPermissions.Read | BlobSasPermissions.Write);
+
+            // Add the SAS token to the blob URI.
+            var blobUriBuilder = new BlobUriBuilder(blobClient.Uri)
+            {
+                // Specify the user delegation key.
+                Sas = sasBuilder.ToSasQueryParameters(userDelegationKey, blobServiceClient.AccountName)
+            };
+
+            Console.WriteLine("Blob user delegation SAS URI: {0}", blobUriBuilder);
+            Console.WriteLine();
+            return blobUriBuilder.ToUri();
         }
 
         public async Task<Azure.Response> DownloadAsync(string blobName, string downloadPath)
