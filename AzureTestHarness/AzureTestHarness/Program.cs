@@ -26,9 +26,10 @@ namespace AzureTestHarness
 
                 var services = new List<Enums.AzureService>
                 {
-                    Enums.AzureService.KeyVault,
-                    Enums.AzureService.BlobStorage,
-                    Enums.AzureService.ServiceBus
+                    //Enums.AzureService.KeyVault,
+                    //Enums.AzureService.BlobStorage,
+                    //Enums.AzureService.ServiceBus,
+                    Enums.AzureService.DataLakeStorage,
                 };
 
                 Task.Run(async () =>
@@ -51,7 +52,12 @@ namespace AzureTestHarness
                             var sb = new ServiceBusServiceInvoker(ServiceProvider.GetService<IServiceBusService>());
                             await sb.Invoke();
                             break;
-                            
+
+                            case Enums.AzureService.DataLakeStorage:
+                            var dl = new DataLakeStorageServiceInvoker(ServiceProvider.GetService<IDataLakeStorageService>());
+                            await dl.Invoke();
+                            break;
+
                             default: throw new ArgumentOutOfRangeException();
                         }
                     }
@@ -83,10 +89,12 @@ namespace AzureTestHarness
             services.Configure<KeyVaultOption>(Configuration.GetSection(nameof(KeyVaultOption)));
             services.Configure<BlobStorageOption>(Configuration.GetSection(nameof(BlobStorageOption)));
             services.Configure<ServiceBusOption>(Configuration.GetSection(nameof(ServiceBusOption)));
+            services.Configure<DataLakeStorageOption>(Configuration.GetSection(nameof(DataLakeStorageOption)));
 
             services.AddTransient<IKeyVaultService, KeyVaultService>();
             services.AddTransient<IBlobStorageService, BlobStorageService>();
             services.AddTransient<IServiceBusService, ServiceBusService>();
+            services.AddTransient<IDataLakeStorageService, DataLakeStorageService>();
 
             ServiceProvider = services.BuildServiceProvider();
         }

@@ -6,7 +6,8 @@
         {
             KeyVault = 1,
             BlobStorage = 2,
-            ServiceBus = 3
+            ServiceBus = 3,
+            DataLakeStorage = 4
         }
     }
 }
