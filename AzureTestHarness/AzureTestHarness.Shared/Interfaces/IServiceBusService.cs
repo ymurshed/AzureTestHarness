@@ -4,8 +4,11 @@ namespace AzureTestHarness.Shared.Interfaces
 {
     public interface IServiceBusService
     {
-        Task SendMessageAsync<T>(T serviceBusMessage);
-        Task<string> ReceiveMessageAsync();
-        Task ProcessMessageAsync();
+        Task SendQueueMessageAsync<T>(T serviceBusMessage);
+        Task<string> ReceiveQueueMessageAsync();
+        Task ProcessQueueMessageAsync();
+
+        Task<string> ReceiveTopicMessageAsync(string subscriptionName);
+        Task ProcessTopicMessageAsync(string subscriptionName);
     }
 }

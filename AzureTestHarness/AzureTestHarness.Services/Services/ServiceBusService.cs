@@ -13,23 +13,25 @@ namespace AzureTestHarness.Services.Services
     public class ServiceBusService : IServiceBusService
     {
         private readonly IOptions<ServiceBusOption> _serviceBusOption;
-        private readonly ServiceBusClient _client;
+        private readonly ServiceBusClient _queueClient;
+        private readonly ServiceBusClient _topicClient;
 
         public ServiceBusService(IOptions<ServiceBusOption> serviceBusOption)
         {
             _serviceBusOption = serviceBusOption;
-            _client = GetClient();
+            _queueClient = GetQueueClient();
+            _topicClient = GetTopicClient();
         }
 
         ~ServiceBusService()
         {
-            _client.DisposeAsync();
+            _queueClient.DisposeAsync();
         }
 
-
-        public async Task SendMessageAsync<T>(T serviceBusMessage)
+        #region Queue
+        public async Task SendQueueMessageAsync<T>(T serviceBusMessage)
         {
-            var sender = _client.CreateSender(_serviceBusOption.Value.Queue);
+            var sender = _queueClient.CreateSender(_serviceBusOption.Value.Queue);
 
             try
             {
@@ -41,7 +43,7 @@ namespace AzureTestHarness.Services.Services
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Service bus message send failed. Error: {ex}");
+                Console.WriteLine($"Service bus queue message send failed. Error: {ex}");
             }
             finally
             {
@@ -50,9 +52,9 @@ namespace AzureTestHarness.Services.Services
         }
 
         // Equivalent to Peek event, perform read only from queue
-        public async Task<string> ReceiveMessageAsync()
+        public async Task<string> ReceiveQueueMessageAsync()
         {
-            var receiver = _client.CreateReceiver(_serviceBusOption.Value.Queue);
+            var receiver = _queueClient.CreateReceiver(_serviceBusOption.Value.Queue);
 
             try
             {
@@ -63,7 +65,7 @@ namespace AzureTestHarness.Services.Services
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Service bus message receive failed. Error: {ex}");
+                Console.WriteLine($"Service bus queue message receive failed. Error: {ex}");
                 return null;
             }
             finally
@@ -73,14 +75,14 @@ namespace AzureTestHarness.Services.Services
         }
 
         // Equivalent to Receive event, perform read & delete from queue 
-        public async Task ProcessMessageAsync()
+        public async Task ProcessQueueMessageAsync()
         {
-            var processor = _client.CreateProcessor(_serviceBusOption.Value.Queue, new ServiceBusProcessorOptions());
+            var processor = _queueClient.CreateProcessor(_serviceBusOption.Value.Queue, new ServiceBusProcessorOptions());
 
             try
             {
-                processor.ProcessMessageAsync += MessageHandler;
-                processor.ProcessErrorAsync += ErrorHandler;
+                processor.ProcessMessageAsync += QueueMessageHandler;
+                processor.ProcessErrorAsync += QueueErrorHandler;
 
                 await processor.StartProcessingAsync();
                 Thread.Sleep(30 * 1000);
@@ -88,34 +90,109 @@ namespace AzureTestHarness.Services.Services
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Service bus message receive failed. Error: {ex}");
+                Console.WriteLine($"Service bus queue message receive failed. Error: {ex}");
             }
             finally
             {
                 await processor.CloseAsync();
-                await _client.DisposeAsync();
+                await _queueClient.DisposeAsync();
+            }
+        }
+        #endregion
+
+        #region Topic
+        // Equivalent to Peek event, perform read only from topic
+        public async Task<string> ReceiveTopicMessageAsync(string subscriptionName)
+        {
+            var receiver = _topicClient.CreateReceiver(_serviceBusOption.Value.Topic, subscriptionName);
+
+            try
+            {
+                var message = await receiver.ReceiveMessageAsync();
+                var jsonString = Encoding.UTF8.GetString(message.Body);
+                await receiver.CloseAsync();
+                return jsonString;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Service bus topic message receive failed. Error: {ex}");
+                return null;
+            }
+            finally
+            {
+                await receiver.CloseAsync();
             }
         }
 
-        #region private methods
-        private ServiceBusClient GetClient()
+        public async Task ProcessTopicMessageAsync(string subscriptionName)
         {
-            var client = new ServiceBusClient(_serviceBusOption.Value.ConnectionString);
+            var processor = _topicClient.CreateProcessor(_serviceBusOption.Value.Topic, subscriptionName, new ServiceBusProcessorOptions());
+
+            try
+            {
+                processor.ProcessMessageAsync += TopicMessageHandler;
+                processor.ProcessErrorAsync += TopicErrorHandler;
+
+                await processor.StartProcessingAsync();
+                Thread.Sleep(30 * 1000);
+                await processor.StopProcessingAsync();
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Service bus topic message receive failed. Error: {ex}");
+            }
+            finally
+            {
+                await processor.CloseAsync();
+                await _topicClient.DisposeAsync();
+            }
+        }
+        #endregion
+
+        #region private methods
+
+        #region Queue
+        private ServiceBusClient GetQueueClient()
+        {
+            var client = new ServiceBusClient(_serviceBusOption.Value.QueueConnectionString);
             return client;
         }
 
-        private static async Task MessageHandler(ProcessMessageEventArgs args)
+        private static async Task QueueMessageHandler(ProcessMessageEventArgs args)
         {
             var jsonString = Encoding.UTF8.GetString(args.Message.Body);
-            await args.CompleteMessageAsync(args.Message);
-            Console.WriteLine($"Message received from service bus: {jsonString}");
+            await args.CompleteMessageAsync(args.Message); // Read and delete from queue
+            Console.WriteLine($"Message received from service bus queue: {jsonString}");
         }
 
-        private static Task ErrorHandler(ProcessErrorEventArgs args)
+        private static Task QueueErrorHandler(ProcessErrorEventArgs args)
         {
-            Console.WriteLine($"Service bus message receive failed. Error: {args.Exception}");
+            Console.WriteLine($"Service bus queue message receive failed. Error: {args.Exception}");
             return Task.CompletedTask;
         }
+        #endregion
+
+        #region topic
+        private ServiceBusClient GetTopicClient()
+        {
+            var client = new ServiceBusClient(_serviceBusOption.Value.TopicConnectionString);
+            return client;
+        }
+
+        private static async Task TopicMessageHandler(ProcessMessageEventArgs args)
+        {
+            var jsonString = Encoding.UTF8.GetString(args.Message.Body);
+            await args.CompleteMessageAsync(args.Message); // Read and delete from topic
+            Console.WriteLine($"Message received from service bus topic: {jsonString}");
+        }
+
+        private static Task TopicErrorHandler(ProcessErrorEventArgs args)
+        {
+            Console.WriteLine($"Service bus topic message receive failed. Error: {args.Exception}");
+            return Task.CompletedTask;
+        }
+        #endregion
+
         #endregion
     }
 }

@@ -26,9 +26,9 @@ namespace AzureTestHarness
 
                 var services = new List<Enums.AzureService>
                 {
-                    //Enums.AzureService.KeyVault,
-                    //Enums.AzureService.BlobStorage,
-                    //Enums.AzureService.ServiceBus,
+                    Enums.AzureService.KeyVault,
+                    Enums.AzureService.BlobStorage,
+                    Enums.AzureService.ServiceBus,
                     Enums.AzureService.DataLakeStorage,
                 };
 
