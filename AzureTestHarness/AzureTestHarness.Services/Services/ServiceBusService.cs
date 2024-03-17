@@ -4,9 +4,13 @@ using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using Azure.Messaging.ServiceBus;
+using Azure.Messaging.ServiceBus.Administration;
 using AzureTestHarness.Shared.Interfaces;
 using AzureTestHarness.Shared.Models.OptionModels;
 using Microsoft.Extensions.Options;
+using System.Linq;
+using Microsoft.Extensions.Azure;
+using System.Collections.Generic;
 
 namespace AzureTestHarness.Services.Services
 {
@@ -15,17 +19,21 @@ namespace AzureTestHarness.Services.Services
         private readonly IOptions<ServiceBusOption> _serviceBusOption;
         private readonly ServiceBusClient _queueClient;
         private readonly ServiceBusClient _topicClient;
-
+        private readonly ServiceBusAdministrationClient _topicAdminClient;
+        
         public ServiceBusService(IOptions<ServiceBusOption> serviceBusOption)
         {
             _serviceBusOption = serviceBusOption;
             _queueClient = GetQueueClient();
             _topicClient = GetTopicClient();
+
+            _topicAdminClient = new ServiceBusAdministrationClient(serviceBusOption.Value.TopicConnectionString);
         }
 
         ~ServiceBusService()
         {
             _queueClient.DisposeAsync();
+            _topicClient.DisposeAsync();
         }
 
         #region Queue
@@ -105,7 +113,7 @@ namespace AzureTestHarness.Services.Services
         public async Task<string> ReceiveTopicMessageAsync(string subscriptionName)
         {
             var receiver = _topicClient.CreateReceiver(_serviceBusOption.Value.Topic, subscriptionName);
-
+            
             try
             {
                 var message = await receiver.ReceiveMessageAsync();
@@ -124,6 +132,7 @@ namespace AzureTestHarness.Services.Services
             }
         }
 
+        // Equivalent to Receive event, perform read & delete from topic 
         public async Task ProcessTopicMessageAsync(string subscriptionName)
         {
             var processor = _topicClient.CreateProcessor(_serviceBusOption.Value.Topic, subscriptionName, new ServiceBusProcessorOptions());
@@ -145,6 +154,24 @@ namespace AzureTestHarness.Services.Services
             {
                 await processor.CloseAsync();
                 await _topicClient.DisposeAsync();
+            }
+        }
+
+        public async Task GetSubscriptionsAsync()
+        {
+            try
+            {
+                var subscriptionNames = new List<string>();
+                var subscriptions = _topicAdminClient.GetSubscriptionsAsync(_serviceBusOption.Value.Topic);
+                
+                await foreach (var item in subscriptions)
+                {
+                    subscriptionNames.Add(item.SubscriptionName);
+                };
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"An error occurred: {ex.Message}");
             }
         }
         #endregion

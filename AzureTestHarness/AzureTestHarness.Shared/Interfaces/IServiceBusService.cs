@@ -10,5 +10,7 @@ namespace AzureTestHarness.Shared.Interfaces
 
         Task<string> ReceiveTopicMessageAsync(string subscriptionName);
         Task ProcessTopicMessageAsync(string subscriptionName);
+        
+        Task GetSubscriptionsAsync();
     }
 }
